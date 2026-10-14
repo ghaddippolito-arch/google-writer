@@ -1,0 +1,32 @@
+# Secrets and sensitive credentials - NEVER COMMIT!
+.env
+credentials.json
+token.json
+service_account.json
+*.pem
+*.key
+
+# Streamlit secrets and local configurations
+.streamlit/secrets.toml
+
+# Python runtime and caches
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+
+# System generated and local logs
+.system_generated/
+*.log
+
+# Windows and IDE
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.vscode/
+.idea/
