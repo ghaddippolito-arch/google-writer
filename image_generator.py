@@ -17,7 +17,6 @@ import urllib.parse
 import urllib.request
 import zipfile
 from typing import Any, Dict, List, Optional, Tuple
-from google import genai
 
 
 STOP_WORDS = {
@@ -50,6 +49,7 @@ def extract_destination_keywords(thematic: str, country: str, api_key: Optional[
         return fallback_dest
 
     try:
+        from google import genai
         client = genai.Client(api_key=api_key.strip())
         res = client.models.generate_content(
             model="gemini-3.1-flash-lite",
@@ -87,6 +87,7 @@ def get_pack_queries(
     # Intento con Gemini para consultas específicas de atracciones reales
     if api_key and api_key.strip():
         try:
+            from google import genai
             client = genai.Client(api_key=api_key.strip())
             prompt = (
                 f"Travel topic: '{thematic}', Country: '{country}'. Primary destination: '{dest_clean}'.\n"

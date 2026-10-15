@@ -30,12 +30,22 @@ from google_docs_exporter import (
     DEFAULT_CREDENTIALS_FILE,
     DEFAULT_SERVICE_ACCOUNT_FILE
 )
-from image_generator import (
-    fetch_article_images_pack,
-    regenerate_single_image,
-    create_images_zip,
-    get_pack_queries
-)
+def safe_fetch_article_images_pack(*args, **kwargs):
+    import image_generator
+    try:
+        import importlib
+        importlib.reload(image_generator)
+    except Exception:
+        pass
+    return image_generator.fetch_article_images_pack(*args, **kwargs)
+
+def safe_regenerate_single_image(*args, **kwargs):
+    import image_generator
+    return image_generator.regenerate_single_image(*args, **kwargs)
+
+def safe_create_images_zip(*args, **kwargs):
+    import image_generator
+    return image_generator.create_images_zip(*args, **kwargs)
 
 # Configuración de página de Streamlit
 st.set_page_config(
@@ -384,7 +394,7 @@ if generate_btn:
                     if generate_image_opt:
                         st.write("🎨 Generando pack de 3 imágenes HD (1 portada + 2 interior)...")
                         try:
-                            images_pack = fetch_article_images_pack(
+                            images_pack = safe_fetch_article_images_pack(
                                 thematic=thematic.strip(),
                                 subcategory=selected_subcategory,
                                 country=country,
@@ -526,7 +536,7 @@ if st.session_state.article_data:
 
             # Botón para descargar el pack completo en un único archivo ZIP
             try:
-                zip_bytes = create_images_zip(images_pack, clean_title)
+                zip_bytes = safe_create_images_zip(images_pack, clean_title)
                 st.download_button(
                     label="📦 Descargar Pack Completo (ZIP con las 3 imágenes HD)",
                     data=zip_bytes,
@@ -563,7 +573,7 @@ if st.session_state.article_data:
                         with st.spinner(f"Buscando alternativa para {item['badge']}..."):
                             try:
                                 used_others = {other["url"] for other in images_pack if other.get("url") and other["id"] != item["id"]}
-                                new_b, new_u, new_t = regenerate_single_image(item["query"], exclude_urls=used_others, width=1280)
+                                new_b, new_u, new_t = safe_regenerate_single_image(item["query"], exclude_urls=used_others, width=1280)
                                 if new_b:
                                     item["bytes"] = new_b
                                     item["url"] = new_u or ""
@@ -582,7 +592,7 @@ if st.session_state.article_data:
             if st.button("🔄 Regenerar las 3 imágenes a la vez", use_container_width=True):
                 with st.spinner("Regenerando el pack completo de 3 imágenes en alta definición..."):
                     try:
-                        new_pack = fetch_article_images_pack(
+                        new_pack = safe_fetch_article_images_pack(
                             thematic=thematic.strip(),
                             subcategory=selected_subcategory,
                             country=country,
@@ -612,7 +622,7 @@ if st.session_state.article_data:
                         new_queries = [q_portada, q_int1, q_int2]
                         for idx, cur_item in enumerate(images_pack):
                             target_q = new_queries[idx] if idx < len(new_queries) and new_queries[idx].strip() else cur_item["query"]
-                            b, u, t = regenerate_single_image(target_q, exclude_urls=new_used, width=1280)
+                            b, u, t = safe_regenerate_single_image(target_q, exclude_urls=new_used, width=1280)
                             if b:
                                 new_used.add(u)
                                 custom_pack.append({
@@ -632,7 +642,7 @@ if st.session_state.article_data:
             if st.button("📸 Generar Pack de 3 Imágenes Ahora (1 Portada + 2 Interior)", type="primary", use_container_width=True):
                 with st.spinner("Buscando y optimizando 3 fotografías en alta definición para este artículo..."):
                     try:
-                        pack = fetch_article_images_pack(
+                        pack = safe_fetch_article_images_pack(
                             thematic=thematic.strip() if thematic else "Viajes",
                             subcategory=selected_subcategory,
                             country=country,
