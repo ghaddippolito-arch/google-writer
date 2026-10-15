@@ -30,6 +30,7 @@ from google_docs_exporter import (
     DEFAULT_CREDENTIALS_FILE,
     DEFAULT_SERVICE_ACCOUNT_FILE
 )
+from image_generator import create_travel_image_prompt, generate_travel_image
 
 # Configuración de página de Streamlit
 st.set_page_config(
@@ -91,6 +92,10 @@ if "google_doc_id" not in st.session_state:
     st.session_state.google_doc_id = None
 if "last_error" not in st.session_state:
     st.session_state.last_error = None
+if "article_image_bytes" not in st.session_state:
+    st.session_state.article_image_bytes = None
+if "article_image_prompt" not in st.session_state:
+    st.session_state.article_image_prompt = None
 
 
 # ==========================================
@@ -301,6 +306,13 @@ with st.container():
         )
         st.caption(f"📌 *Opciones para: {selected_category}*")
 
+# Opciones de generación
+generate_image_opt = st.checkbox(
+    "🎨 Generar imagen de portada con IA (Formato panorámico 16:9)",
+    value=True,
+    help="Crea una fotografía cinematográfica en alta resolución para este artículo, lista para descargar (no se inserta en Google Docs)."
+)
+
 # Botón Generar destacado
 st.markdown("<br>", unsafe_allow_html=True)
 generate_btn = st.button("🚀 Generar Artículo y Crear en Google Docs", type="primary", use_container_width=True)
@@ -360,6 +372,28 @@ if generate_btn:
                             f"⚠️ El artículo se generó correctamente, pero hubo un detalle al crear el Google Doc: {doc_err}\n\n"
                             "Puedes autorizar tu cuenta en la barra lateral o con auth_google.bat y presionar el botón de exportación."
                         )
+
+                    # 3. Generar fotografía de portada con IA si está habilitado
+                    if generate_image_opt:
+                        st.write("🎨 Generando fotografía de portada con IA (16:9)...")
+                        try:
+                            img_prompt = create_travel_image_prompt(
+                                thematic=thematic.strip(),
+                                subcategory=selected_subcategory,
+                                country=country,
+                                api_key=api_key_input
+                            )
+                            img_bytes = generate_travel_image(prompt=img_prompt, width=1280, height=720)
+                            st.session_state.article_image_bytes = img_bytes
+                            st.session_state.article_image_prompt = img_prompt
+                            st.write("✅ Fotografía de portada generada exitosamente (lista para descargar).")
+                        except Exception as img_err:
+                            print(f"[IMAGE_GEN] Error al generar imagen: {img_err}", flush=True)
+                            st.session_state.article_image_bytes = None
+                            st.warning(f"⚠️ La imagen de portada no se pudo generar automáticamente: {img_err}")
+                    else:
+                        st.session_state.article_image_bytes = None
+                        st.session_state.article_image_prompt = None
                 except Exception as gemini_err:
                     status.update(label="Error durante la generación", state="error", expanded=True)
                     st.error(f"❌ Ocurrió un error al generar con Gemini: {gemini_err}")
@@ -438,7 +472,12 @@ if st.session_state.article_data:
         st.metric(label="🤖 Modelo Utilizado", value=data.get("model_used", gemini_model))
 
     # Pestañas de visualización
-    tab_preview, tab_markdown, tab_sources = st.tabs(["📖 Vista Previa del Artículo", "📋 Markdown Puro", "🌐 Fuentes y Búsqueda"])
+    tab_preview, tab_markdown, tab_sources, tab_image = st.tabs([
+        "📖 Vista Previa del Artículo",
+        "📋 Markdown Puro",
+        "🌐 Fuentes y Búsqueda",
+        "🖼️ Imagen de Portada con IA"
+    ])
 
     with tab_preview:
         st.markdown(data["text"])
@@ -467,6 +506,55 @@ if st.session_state.article_data:
                 st.markdown(f"- [{s.get('title', 'Fuente')}]({s.get('url')})")
         else:
             st.info("Las citas y enlaces markdown han sido incorporados directamente en el cuerpo del artículo.")
+
+    with tab_image:
+        if st.session_state.get("article_image_bytes"):
+            img_bytes = st.session_state.article_image_bytes
+            clean_title = "".join(c for c in thematic if c.isalnum() or c in (" ", "_", "-")).rstrip().replace(" ", "_")
+            if not clean_title:
+                clean_title = "articulo_portada"
+
+            st.markdown("### 🖼️ Fotografía de Portada (Generada con IA)")
+            st.caption("📐 Formato: **16:9 Panorámico (1280x720)** • 🌟 Modelo: **Flux.1 AI** • 💾 Formato: **JPEG en Alta Definición**")
+
+            # Mostrar imagen
+            st.image(img_bytes, use_container_width=True)
+
+            col_img1, col_img2 = st.columns([2, 1])
+            with col_img1:
+                st.download_button(
+                    label="💾 Descargar Imagen de Portada (.jpg)",
+                    data=img_bytes,
+                    file_name=f"{clean_title}_portada.jpg",
+                    mime="image/jpeg",
+                    type="primary",
+                    use_container_width=True
+                )
+            with col_img2:
+                if st.button("🔄 Regenerar otra versión de imagen", use_container_width=True):
+                    with st.spinner("Creando nueva versión con IA..."):
+                        current_p = st.session_state.get("article_image_prompt", "") or create_travel_image_prompt(thematic, selected_subcategory, country, api_key_input)
+                        new_img = generate_travel_image(current_p, width=1280, height=720)
+                        st.session_state.article_image_bytes = new_img
+                        st.rerun()
+
+            with st.expander("🔍 Ver / Personalizar Prompt Visual de la IA"):
+                custom_prompt = st.text_area("Prompt en inglés utilizado para generar la imagen:", value=st.session_state.get("article_image_prompt", ""), height=90)
+                if st.button("🎨 Regenerar con este prompt personalizado"):
+                    with st.spinner("Generando imagen con prompt personalizado..."):
+                        new_custom_img = generate_travel_image(custom_prompt, width=1280, height=720)
+                        st.session_state.article_image_bytes = new_custom_img
+                        st.session_state.article_image_prompt = custom_prompt
+                        st.rerun()
+        else:
+            st.info("No se ha generado imagen para este artículo todavía.")
+            if st.button("🎨 Generar Fotografía de Portada con IA Ahora", type="primary", use_container_width=True):
+                with st.spinner("Diseñando y generando fotografía de viajes con IA (Flux)..."):
+                    prompt = create_travel_image_prompt(thematic, selected_subcategory, country, api_key_input)
+                    new_img = generate_travel_image(prompt, width=1280, height=720)
+                    st.session_state.article_image_bytes = new_img
+                    st.session_state.article_image_prompt = prompt
+                    st.rerun()
 
 st.markdown("---")
 st.caption("Google Writer • Desarrollado con Streamlit, Gemini API con Google Search Grounding y Google Docs API.")

@@ -1,35 +1,37 @@
 @echo off
 chcp 65001 >nul
 echo ========================================================
-echo   Google Writer - Subir repositorio a GitHub
+echo   Google Writer - Subir código a GitHub
 echo ========================================================
 echo.
+echo Repositorio destino: https://github.com/ghaddippolito-arch/google-writer
+echo.
+echo GitHub requiere un token de acceso personal para subir código:
+echo 1. Abre en tu navegador: https://github.com/settings/tokens/new?scopes=repo^&description=GoogleWriterDeploy
+echo 2. Baja hasta el final y haz clic en "Generate token".
+echo 3. Copia el token que empieza con "ghp_..."
+echo.
+set /p TOKEN="Pega tu token de GitHub aquí (ghp_...): "
 
-set /p REPO_URL="Pega la URL de tu nuevo repositorio de GitHub (ej: https://github.com/tu-usuario/google-writer.git): "
-
-if "%REPO_URL%"=="" (
-    echo [ERROR] No ingresaste ninguna URL.
+if "%TOKEN%"=="" (
+    echo [ERROR] No ingresaste ningún token.
     pause
     exit /b
 )
 
 echo.
-echo [1/3] Vinculando repositorio remoto...
+echo Subiendo código a GitHub...
 "%LOCALAPPDATA%\Programs\MinGit\cmd\git.exe" remote remove origin 2>nul
-"%LOCALAPPDATA%\Programs\MinGit\cmd\git.exe" remote add origin %REPO_URL%
-
-echo [2/3] Configurando rama principal 'main'...
+"%LOCALAPPDATA%\Programs\MinGit\cmd\git.exe" remote add origin https://github.com/ghaddippolito-arch/google-writer.git
 "%LOCALAPPDATA%\Programs\MinGit\cmd\git.exe" branch -M main
-
-echo [3/3] Subiendo archivos a GitHub...
-"%LOCALAPPDATA%\Programs\MinGit\cmd\git.exe" push -u origin main
+"%LOCALAPPDATA%\Programs\MinGit\cmd\git.exe" push -u https://%TOKEN%@github.com/ghaddippolito-arch/google-writer.git main
 
 echo.
 if %ERRORLEVEL% equ 0 (
     echo ========================================================
-    echo   ¡REPOSITORIO SUBIDO CON ÉXITO A GITHUB!
+    echo   ¡CÓDIGO SUBIDO EXITOSAMENTE A TU GITHUB!
     echo ========================================================
 ) else (
-    echo [ERROR] Hubo un problema al subir a GitHub. Verifica tus credenciales de GitHub.
+    echo [ERROR] Ocurrió un error al subir. Verifica que el token sea correcto.
 )
 pause
