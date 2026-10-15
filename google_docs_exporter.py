@@ -337,7 +337,7 @@ def create_google_doc(
         file_metadata = {
             "name": title,
             "mimeType": "application/vnd.google-apps.document",
-            "description": "Artículo SEO generado con Google Writer y Gemini"
+            "description": "Artículo SEO generado con ACI Writer y Gemini"
         }
 
         media = MediaInMemoryUpload(

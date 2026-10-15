@@ -161,7 +161,7 @@ def fetch_wikimedia_photo(
         try:
             req = urllib.request.Request(
                 api_url,
-                headers={"User-Agent": "GoogleWriterBot/1.0 (travel editorial pack assistant)"}
+                headers={"User-Agent": "ACIWriterBot/1.0 (travel editorial pack assistant)"}
             )
             with urllib.request.urlopen(req, context=ctx, timeout=8) as resp:
                 data = json.loads(resp.read().decode("utf-8", errors="ignore"))
@@ -180,7 +180,7 @@ def fetch_wikimedia_photo(
                         if img_url and img_url not in exclude_urls:
                             img_req = urllib.request.Request(
                                 img_url,
-                                headers={"User-Agent": "GoogleWriterBot/1.0"}
+                                headers={"User-Agent": "ACIWriterBot/1.0"}
                             )
                             with urllib.request.urlopen(img_req, context=ctx, timeout=12) as img_resp:
                                 img_bytes = img_resp.read()

@@ -1,5 +1,5 @@
 """
-Configuración y constantes para la aplicación Streamlit de Google Writer.
+Configuración y constantes para la aplicación Streamlit de ACI Writer.
 Define categorías, subcategorías, países completos del mundo, idiomas y prompts de SEO y Helpful Content.
 """
 

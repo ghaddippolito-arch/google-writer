@@ -1,4 +1,4 @@
-# Google Writer ✍️
+# ACI Writer ✍️
 
 Aplicación web local desarrollada en Python con **Streamlit** para la generación automatizada de artículos SEO de alta calidad (+1500 palabras) optimizados bajo los criterios de **Google Helpful Content System**, con datos reales investigados en internet vía **Google Search Grounding**, y exportación directa a **Google Docs**.
 

@@ -1,7 +1,7 @@
 @echo off
 chcp 65001 >nul
 echo ========================================================
-echo   Google Writer - Subir código a GitHub
+echo   ACI Writer - Subir código a GitHub
 echo ========================================================
 echo.
 echo Repositorio destino: https://github.com/ghaddippolito-arch/google-writer

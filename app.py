@@ -1,5 +1,5 @@
 """
-Aplicación Streamlit: Google Writer - Generador SEO con Gemini y Google Docs
+Aplicación Streamlit: ACI Writer - Generador SEO con Gemini y Google Docs
 Redacta artículos SEO de +1500 palabras con citas reales y Helpful Content de Google,
 y los exporta directamente a tu cuenta de Google Docs.
 """
@@ -49,7 +49,7 @@ def safe_create_images_zip(*args, **kwargs):
 
 # Configuración de página de Streamlit
 st.set_page_config(
-    page_title="Google Writer - SEO & Google Docs",
+    page_title="ACI Writer - SEO & Google Docs",
     page_icon="✍️",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -266,7 +266,7 @@ with st.sidebar:
 # ==========================================
 # ÁREA PRINCIPAL: Formulario de Redacción
 # ==========================================
-st.markdown('<div class="main-title">✍️ Google Writer: Artículos SEO & Google Docs</div>', unsafe_allow_html=True)
+st.markdown('<div class="main-title">✍️ ACI Writer: Artículos SEO & Google Docs</div>', unsafe_allow_html=True)
 st.markdown(
     '<div class="sub-title">Genera artículos optimizados de <b>+1500 palabras</b> siguiendo '
     '<b>Google Helpful Content</b> con datos reales investigados en internet y expórtalos automáticamente a tu <b>Google Docs</b>.</div>',
@@ -655,4 +655,4 @@ if st.session_state.article_data:
                         st.error(f"No fue posible generar el pack: {e_pack}")
 
 st.markdown("---")
-st.caption("Google Writer • Desarrollado con Streamlit, Gemini API con Google Search Grounding y Google Docs API.")
+st.caption("ACI Writer • Desarrollado con Streamlit, Gemini API con Google Search Grounding y Google Docs API.")
