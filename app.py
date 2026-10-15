@@ -531,30 +531,39 @@ if st.session_state.article_data:
                     use_container_width=True
                 )
             with col_img2:
-                if st.button("🔄 Regenerar otra versión de imagen", use_container_width=True):
-                    with st.spinner("Creando nueva versión con IA..."):
-                        current_p = st.session_state.get("article_image_prompt", "") or create_travel_image_prompt(thematic, selected_subcategory, country, api_key_input)
-                        new_img = generate_travel_image(current_p, width=1280, height=720)
-                        st.session_state.article_image_bytes = new_img
-                        st.rerun()
+                if st.button("🔄 Regenerar otra versión", use_container_width=True):
+                    with st.spinner("Buscando nueva fotografía panorámica en alta definición..."):
+                        try:
+                            current_p = st.session_state.get("article_image_prompt", "") or create_travel_image_prompt(thematic, selected_subcategory, country, api_key_input)
+                            new_img = generate_travel_image(current_p, width=1280, height=720)
+                            st.session_state.article_image_bytes = new_img
+                            st.rerun()
+                        except Exception as e_regen:
+                            st.error(f"No fue posible obtener otra versión: {e_regen}")
 
-            with st.expander("🔍 Ver / Personalizar Prompt Visual de la IA"):
-                custom_prompt = st.text_area("Prompt en inglés utilizado para generar la imagen:", value=st.session_state.get("article_image_prompt", ""), height=90)
-                if st.button("🎨 Regenerar con este prompt personalizado"):
-                    with st.spinner("Generando imagen con prompt personalizado..."):
-                        new_custom_img = generate_travel_image(custom_prompt, width=1280, height=720)
-                        st.session_state.article_image_bytes = new_custom_img
-                        st.session_state.article_image_prompt = custom_prompt
-                        st.rerun()
+            with st.expander("🔍 Ver / Personalizar Términos de Búsqueda Visual"):
+                custom_prompt = st.text_area("Término o destino utilizado para la fotografía:", value=st.session_state.get("article_image_prompt", ""), height=90)
+                if st.button("🎨 Buscar fotografía con este término"):
+                    with st.spinner("Buscando fotografía panorámica..."):
+                        try:
+                            new_custom_img = generate_travel_image(custom_prompt, width=1280, height=720)
+                            st.session_state.article_image_bytes = new_custom_img
+                            st.session_state.article_image_prompt = custom_prompt
+                            st.rerun()
+                        except Exception as e_custom:
+                            st.error(f"Error al buscar fotografía: {e_custom}")
         else:
-            st.info("No se ha generado imagen para este artículo todavía.")
-            if st.button("🎨 Generar Fotografía de Portada con IA Ahora", type="primary", use_container_width=True):
-                with st.spinner("Diseñando y generando fotografía de viajes con IA (Flux)..."):
-                    prompt = create_travel_image_prompt(thematic, selected_subcategory, country, api_key_input)
-                    new_img = generate_travel_image(prompt, width=1280, height=720)
-                    st.session_state.article_image_bytes = new_img
-                    st.session_state.article_image_prompt = prompt
-                    st.rerun()
+            st.info("No se ha generado fotografía de portada para este artículo todavía.")
+            if st.button("📸 Obtener Fotografía de Portada HD Ahora", type="primary", use_container_width=True):
+                with st.spinner("Obteniendo fotografía panorámica de viajes en alta resolución (16:9)..."):
+                    try:
+                        prompt = create_travel_image_prompt(thematic, selected_subcategory, country, api_key_input)
+                        new_img = generate_travel_image(prompt, width=1280, height=720)
+                        st.session_state.article_image_bytes = new_img
+                        st.session_state.article_image_prompt = prompt
+                        st.rerun()
+                    except Exception as e_gen:
+                        st.error(f"No fue posible obtener la fotografía: {e_gen}")
 
 st.markdown("---")
 st.caption("Google Writer • Desarrollado con Streamlit, Gemini API con Google Search Grounding y Google Docs API.")
