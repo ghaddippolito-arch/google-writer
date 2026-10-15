@@ -30,7 +30,12 @@ from google_docs_exporter import (
     DEFAULT_CREDENTIALS_FILE,
     DEFAULT_SERVICE_ACCOUNT_FILE
 )
-from image_generator import create_travel_image_prompt, generate_travel_image
+from image_generator import (
+    fetch_article_images_pack,
+    regenerate_single_image,
+    create_images_zip,
+    get_pack_queries
+)
 
 # Configuración de página de Streamlit
 st.set_page_config(
@@ -92,6 +97,8 @@ if "google_doc_id" not in st.session_state:
     st.session_state.google_doc_id = None
 if "last_error" not in st.session_state:
     st.session_state.last_error = None
+if "article_images_pack" not in st.session_state:
+    st.session_state.article_images_pack = None
 if "article_image_bytes" not in st.session_state:
     st.session_state.article_image_bytes = None
 if "article_image_prompt" not in st.session_state:
@@ -308,9 +315,9 @@ with st.container():
 
 # Opciones de generación
 generate_image_opt = st.checkbox(
-    "🎨 Generar imagen de portada con IA (Formato panorámico 16:9)",
+    "🎨 Generar pack de 3 imágenes para el artículo (1 Portada + 2 Interior)",
     value=True,
-    help="Crea una fotografía cinematográfica en alta resolución para este artículo, lista para descargar (no se inserta en Google Docs)."
+    help="Descarga directa en alta definición desde la web: 1 foto de portada panorámica (16:9) y 2 fotos para el interior del artículo. No se insertan en Google Docs."
 )
 
 # Botón Generar destacado
@@ -373,27 +380,27 @@ if generate_btn:
                             "Puedes autorizar tu cuenta en la barra lateral o con auth_google.bat y presionar el botón de exportación."
                         )
 
-                    # 3. Generar fotografía de portada con IA si está habilitado
+                    # 3. Generar pack de 3 imágenes (1 portada + 2 interior) si está habilitado
                     if generate_image_opt:
-                        st.write("🎨 Generando fotografía de portada con IA (16:9)...")
+                        st.write("🎨 Generando pack de 3 imágenes HD (1 portada + 2 interior)...")
                         try:
-                            img_prompt = create_travel_image_prompt(
+                            images_pack = fetch_article_images_pack(
                                 thematic=thematic.strip(),
                                 subcategory=selected_subcategory,
                                 country=country,
-                                api_key=api_key_input
+                                api_key=api_key_input,
+                                width=1280
                             )
-                            img_bytes = generate_travel_image(prompt=img_prompt, width=1280, height=720)
-                            st.session_state.article_image_bytes = img_bytes
-                            st.session_state.article_image_prompt = img_prompt
-                            st.write("✅ Fotografía de portada generada exitosamente (lista para descargar).")
+                            st.session_state.article_images_pack = images_pack
+                            if images_pack and len(images_pack) > 0:
+                                st.session_state.article_image_bytes = images_pack[0]["bytes"]
+                            st.write(f"✅ Pack de {len(images_pack)} imágenes generado exitosamente (listas para descargar).")
                         except Exception as img_err:
-                            print(f"[IMAGE_GEN] Error al generar imagen: {img_err}", flush=True)
-                            st.session_state.article_image_bytes = None
-                            st.warning(f"⚠️ La imagen de portada no se pudo generar automáticamente: {img_err}")
+                            print(f"[IMAGE_GEN] Error al generar pack de imágenes: {img_err}", flush=True)
+                            st.session_state.article_images_pack = None
+                            st.warning(f"⚠️ El pack de imágenes no se pudo generar automáticamente: {img_err}")
                     else:
-                        st.session_state.article_image_bytes = None
-                        st.session_state.article_image_prompt = None
+                        st.session_state.article_images_pack = None
                 except Exception as gemini_err:
                     status.update(label="Error durante la generación", state="error", expanded=True)
                     st.error(f"❌ Ocurrió un error al generar con Gemini: {gemini_err}")
@@ -472,11 +479,11 @@ if st.session_state.article_data:
         st.metric(label="🤖 Modelo Utilizado", value=data.get("model_used", gemini_model))
 
     # Pestañas de visualización
-    tab_preview, tab_markdown, tab_sources, tab_image = st.tabs([
+    tab_preview, tab_markdown, tab_sources, tab_images = st.tabs([
         "📖 Vista Previa del Artículo",
         "📋 Markdown Puro",
         "🌐 Fuentes y Búsqueda",
-        "🖼️ Imagen de Portada con IA"
+        "🖼️ Pack de Imágenes (3)"
     ])
 
     with tab_preview:
@@ -507,63 +514,135 @@ if st.session_state.article_data:
         else:
             st.info("Las citas y enlaces markdown han sido incorporados directamente en el cuerpo del artículo.")
 
-    with tab_image:
-        if st.session_state.get("article_image_bytes"):
-            img_bytes = st.session_state.article_image_bytes
-            clean_title = "".join(c for c in thematic if c.isalnum() or c in (" ", "_", "-")).rstrip().replace(" ", "_")
-            if not clean_title:
-                clean_title = "articulo_portada"
+    with tab_images:
+        images_pack = st.session_state.get("article_images_pack")
+        clean_title = "".join(c for c in thematic if c.isalnum() or c in (" ", "_", "-")).rstrip().replace(" ", "_")
+        if not clean_title:
+            clean_title = "articulo_viajes"
 
-            st.markdown("### 🖼️ Fotografía de Portada (Generada con IA)")
-            st.caption("📐 Formato: **16:9 Panorámico (1280x720)** • 🌟 Modelo: **Flux.1 AI** • 💾 Formato: **JPEG en Alta Definición**")
+        if images_pack and len(images_pack) > 0:
+            st.markdown("### 🖼️ Pack de Imágenes del Artículo (1 Portada + 2 Interior)")
+            st.caption("📐 Fotografías en Alta Definición (1280px) • 💾 Formato JPEG • 🚀 Listas para descargar y usar en tu web o CMS (No insertadas en Google Docs).")
 
-            # Mostrar imagen
-            st.image(img_bytes, use_container_width=True)
-
-            col_img1, col_img2 = st.columns([2, 1])
-            with col_img1:
+            # Botón para descargar el pack completo en un único archivo ZIP
+            try:
+                zip_bytes = create_images_zip(images_pack, clean_title)
                 st.download_button(
-                    label="💾 Descargar Imagen de Portada (.jpg)",
-                    data=img_bytes,
-                    file_name=f"{clean_title}_portada.jpg",
-                    mime="image/jpeg",
+                    label="📦 Descargar Pack Completo (ZIP con las 3 imágenes HD)",
+                    data=zip_bytes,
+                    file_name=f"{clean_title}_pack_imagenes.zip",
+                    mime="application/zip",
                     type="primary",
                     use_container_width=True
                 )
-            with col_img2:
-                if st.button("🔄 Regenerar otra versión", use_container_width=True):
-                    with st.spinner("Buscando nueva fotografía panorámica en alta definición..."):
-                        try:
-                            current_p = st.session_state.get("article_image_prompt", "") or create_travel_image_prompt(thematic, selected_subcategory, country, api_key_input)
-                            new_img = generate_travel_image(current_p, width=1280, height=720)
-                            st.session_state.article_image_bytes = new_img
-                            st.rerun()
-                        except Exception as e_regen:
-                            st.error(f"No fue posible obtener otra versión: {e_regen}")
+            except Exception as e_zip:
+                print(f"[ZIP] Error creando zip: {e_zip}", flush=True)
 
-            with st.expander("🔍 Ver / Personalizar Términos de Búsqueda Visual"):
-                custom_prompt = st.text_area("Término o destino utilizado para la fotografía:", value=st.session_state.get("article_image_prompt", ""), height=90)
-                if st.button("🎨 Buscar fotografía con este término"):
-                    with st.spinner("Buscando fotografía panorámica..."):
-                        try:
-                            new_custom_img = generate_travel_image(custom_prompt, width=1280, height=720)
-                            st.session_state.article_image_bytes = new_custom_img
-                            st.session_state.article_image_prompt = custom_prompt
-                            st.rerun()
-                        except Exception as e_custom:
-                            st.error(f"Error al buscar fotografía: {e_custom}")
-        else:
-            st.info("No se ha generado fotografía de portada para este artículo todavía.")
-            if st.button("📸 Obtener Fotografía de Portada HD Ahora", type="primary", use_container_width=True):
-                with st.spinner("Obteniendo fotografía panorámica de viajes en alta resolución (16:9)..."):
+            st.markdown("<br>", unsafe_allow_html=True)
+
+            # Mostrar las 3 imágenes en 3 columnas
+            cols = st.columns(len(images_pack))
+            for idx, (col, item) in enumerate(zip(cols, images_pack)):
+                with col:
+                    st.markdown(f"#### {item['badge']}")
+                    st.caption(f"**{item['role']}**<br>{item['description']}", unsafe_allow_html=True)
+                    st.image(item["bytes"], use_container_width=True)
+                    
+                    # Botón de descarga individual
+                    st.download_button(
+                        label=f"💾 Descargar {item['badge']} (.jpg)",
+                        data=item["bytes"],
+                        file_name=f"{clean_title}_{item['suffix']}",
+                        mime="image/jpeg",
+                        key=f"dl_img_{item['id']}_{idx}",
+                        use_container_width=True
+                    )
+
+                    # Botón para regenerar esta imagen individual
+                    if st.button(f"🔄 Otra opción de {item['badge']}", key=f"regen_{item['id']}_{idx}", use_container_width=True):
+                        with st.spinner(f"Buscando alternativa para {item['badge']}..."):
+                            try:
+                                used_others = {other["url"] for other in images_pack if other.get("url") and other["id"] != item["id"]}
+                                new_b, new_u, new_t = regenerate_single_image(item["query"], exclude_urls=used_others, width=1280)
+                                if new_b:
+                                    item["bytes"] = new_b
+                                    item["url"] = new_u or ""
+                                    item["title"] = new_t or item["title"]
+                                    st.session_state.article_images_pack = images_pack
+                                    st.success("¡Imagen actualizada!")
+                                    st.rerun()
+                                else:
+                                    st.warning("No se encontró otra alternativa diferente para esa consulta.")
+                            except Exception as e_reg:
+                                st.error(f"Error al regenerar: {e_reg}")
+
+            st.markdown("---")
+
+            # Botón para regenerar las 3 imágenes a la vez
+            if st.button("🔄 Regenerar las 3 imágenes a la vez", use_container_width=True):
+                with st.spinner("Regenerando el pack completo de 3 imágenes en alta definición..."):
                     try:
-                        prompt = create_travel_image_prompt(thematic, selected_subcategory, country, api_key_input)
-                        new_img = generate_travel_image(prompt, width=1280, height=720)
-                        st.session_state.article_image_bytes = new_img
-                        st.session_state.article_image_prompt = prompt
+                        new_pack = fetch_article_images_pack(
+                            thematic=thematic.strip(),
+                            subcategory=selected_subcategory,
+                            country=country,
+                            api_key=api_key_input,
+                            width=1280
+                        )
+                        st.session_state.article_images_pack = new_pack
+                        st.success("¡Pack de imágenes renovado exitosamente!")
                         st.rerun()
-                    except Exception as e_gen:
-                        st.error(f"No fue posible obtener la fotografía: {e_gen}")
+                    except Exception as e_all:
+                        st.error(f"Error al regenerar el pack: {e_all}")
+
+            with st.expander("🔍 Personalizar términos de búsqueda visual para cada imagen"):
+                st.caption("Puedes ajustar el término o monumento para cualquiera de las 3 imágenes y volver a buscar:")
+                col_q1, col_q2, col_q3 = st.columns(3)
+                with col_q1:
+                    q_portada = st.text_input("🌅 Búsqueda Portada:", value=images_pack[0]["query"] if len(images_pack) > 0 else "")
+                with col_q2:
+                    q_int1 = st.text_input("🏛️ Búsqueda Interior 1:", value=images_pack[1]["query"] if len(images_pack) > 1 else "")
+                with col_q3:
+                    q_int2 = st.text_input("🚶 Búsqueda Interior 2:", value=images_pack[2]["query"] if len(images_pack) > 2 else "")
+
+                if st.button("🎨 Buscar con estos términos personalizados"):
+                    with st.spinner("Buscando nuevas fotografías con los términos personalizados..."):
+                        new_used = set()
+                        custom_pack = []
+                        new_queries = [q_portada, q_int1, q_int2]
+                        for idx, cur_item in enumerate(images_pack):
+                            target_q = new_queries[idx] if idx < len(new_queries) and new_queries[idx].strip() else cur_item["query"]
+                            b, u, t = regenerate_single_image(target_q, exclude_urls=new_used, width=1280)
+                            if b:
+                                new_used.add(u)
+                                custom_pack.append({
+                                    **cur_item,
+                                    "query": target_q,
+                                    "bytes": b,
+                                    "url": u or "",
+                                    "title": t or cur_item["title"]
+                                })
+                            else:
+                                custom_pack.append({**cur_item, "query": target_q})
+                        st.session_state.article_images_pack = custom_pack
+                        st.rerun()
+
+        else:
+            st.info("💡 Aún no se ha generado el pack de imágenes para este artículo.")
+            if st.button("📸 Generar Pack de 3 Imágenes Ahora (1 Portada + 2 Interior)", type="primary", use_container_width=True):
+                with st.spinner("Buscando y optimizando 3 fotografías en alta definición para este artículo..."):
+                    try:
+                        pack = fetch_article_images_pack(
+                            thematic=thematic.strip() if thematic else "Viajes",
+                            subcategory=selected_subcategory,
+                            country=country,
+                            api_key=api_key_input,
+                            width=1280
+                        )
+                        st.session_state.article_images_pack = pack
+                        st.rerun()
+                    except Exception as e_pack:
+                        st.error(f"No fue posible generar el pack: {e_pack}")
 
 st.markdown("---")
 st.caption("Google Writer • Desarrollado con Streamlit, Gemini API con Google Search Grounding y Google Docs API.")
