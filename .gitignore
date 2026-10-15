@@ -30,3 +30,6 @@ Desktop.ini
 $RECYCLE.BIN/
 .vscode/
 .idea/
+
+# Local memory images
+memory_images/

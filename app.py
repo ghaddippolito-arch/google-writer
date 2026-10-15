@@ -5,6 +5,7 @@ y los exporta directamente a tu cuenta de Google Docs.
 """
 
 import os
+from datetime import datetime
 import streamlit as st
 from dotenv import load_dotenv
 
@@ -29,6 +30,18 @@ from google_docs_exporter import (
     TOKEN_FILE,
     DEFAULT_CREDENTIALS_FILE,
     DEFAULT_SERVICE_ACCOUNT_FILE
+)
+from memory_manager import (
+    save_article_to_memory,
+    get_all_memory_articles,
+    get_article_by_id,
+    update_article_google_doc,
+    delete_article_from_memory,
+    load_article_images_pack,
+    export_memory_backup,
+    import_memory_backup,
+    get_memory_statistics,
+    render_memory_view
 )
 def safe_fetch_article_images_pack(*args, **kwargs):
     import image_generator
@@ -113,6 +126,12 @@ if "article_image_bytes" not in st.session_state:
     st.session_state.article_image_bytes = None
 if "article_image_prompt" not in st.session_state:
     st.session_state.article_image_prompt = None
+if "current_article_id" not in st.session_state:
+    st.session_state.current_article_id = None
+if "active_thematic" not in st.session_state:
+    st.session_state.active_thematic = ""
+if "selected_view" not in st.session_state:
+    st.session_state.selected_view = "✍️ Redactor de Artículos"
 
 
 # ==========================================
@@ -262,9 +281,19 @@ with st.sidebar:
         4. Descarga el archivo JSON, nómbralo `credentials.json` y súbelo aquí arriba.
         """)
 
+    # 3. Memoria en barra lateral
+    st.markdown("---")
+    st.subheader("📚 Memoria")
+    mem_articles = get_all_memory_articles()
+    mem_cnt = len(mem_articles)
+    st.caption(f"Tienes **{mem_cnt} artículos** guardados en tu archivo.")
+    if st.button("📂 Ir a la Memoria", use_container_width=True):
+        st.session_state.selected_view = f"📚 Memoria ({mem_cnt})"
+        st.rerun()
+
 
 # ==========================================
-# ÁREA PRINCIPAL: Formulario de Redacción
+# ÁREA PRINCIPAL: Navegación y Vistas
 # ==========================================
 st.markdown('<div class="main-title">✍️ ACI Writer: Artículos SEO & Google Docs</div>', unsafe_allow_html=True)
 st.markdown(
@@ -273,6 +302,28 @@ st.markdown(
     unsafe_allow_html=True
 )
 
+all_memory_articles = get_all_memory_articles()
+mem_cnt = len(all_memory_articles)
+nav_options = ["✍️ Redactor de Artículos", f"📚 Memoria ({mem_cnt})"]
+current_idx = 0 if "Redactor" in st.session_state.get("selected_view", "Redactor") else 1
+
+view_choice = st.radio(
+    "Seleccionar vista:",
+    options=nav_options,
+    index=current_idx,
+    horizontal=True,
+    label_visibility="collapsed",
+    key="main_nav_radio"
+)
+st.session_state.selected_view = view_choice
+
+# Si se selecciona la vista de Memoria, renderizarla y detener ejecución del redactor
+if "Memoria" in view_choice:
+    render_memory_view()
+    st.markdown("---")
+    st.caption("ACI Writer • Desarrollado con Streamlit, Gemini API con Google Search Grounding y Google Docs API.")
+    st.stop()
+
 # Formulario principal con los campos requeridos
 with st.container():
     col1, col2 = st.columns([1, 1])
@@ -280,9 +331,12 @@ with st.container():
     with col1:
         thematic = st.text_input(
             "📍 Temática:",
+            value=st.session_state.get("active_thematic", ""),
             placeholder="Ej: Viaje a Japón en primavera: itinerario, costos y visados",
             help="Ingresa el tema específico, destino o foco del artículo que deseas redactar."
         )
+        if thematic:
+            st.session_state.active_thematic = thematic
 
         language = st.selectbox(
             "🌐 Idioma:",
@@ -411,6 +465,24 @@ if generate_btn:
                             st.warning(f"⚠️ El pack de imágenes no se pudo generar automáticamente: {img_err}")
                     else:
                         st.session_state.article_images_pack = None
+
+                    # 4. Guardar automáticamente en la Memoria permanente
+                    try:
+                        saved_id = save_article_to_memory(
+                            article_data=article_result,
+                            thematic=thematic.strip(),
+                            category=selected_category,
+                            subcategory=selected_subcategory,
+                            country=country,
+                            language=language,
+                            google_doc_url=st.session_state.google_doc_url,
+                            google_doc_id=st.session_state.google_doc_id,
+                            images_pack=st.session_state.article_images_pack
+                        )
+                        st.session_state.current_article_id = saved_id
+                        st.write("💾 Artículo guardado automáticamente en la Memoria.")
+                    except Exception as e_mem:
+                        print(f"[MEMORY] Error al guardar en memoria: {e_mem}", flush=True)
                 except Exception as gemini_err:
                     status.update(label="Error durante la generación", state="error", expanded=True)
                     st.error(f"❌ Ocurrió un error al generar con Gemini: {gemini_err}")
@@ -464,6 +536,12 @@ if st.session_state.article_data:
                         )
                         st.session_state.google_doc_url = doc_export["document_url"]
                         st.session_state.google_doc_id = doc_export["document_id"]
+                        if st.session_state.get("current_article_id"):
+                            update_article_google_doc(
+                                st.session_state.current_article_id,
+                                doc_export["document_url"],
+                                doc_export["document_id"]
+                            )
                         st.success("¡Documento creado exitosamente!")
                         st.rerun()
                     except Exception as err:
